@@ -2,12 +2,13 @@ import streamlit as st
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 from langchain.text_splitter import CharacterTextSplitter
-# from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
-from langchain.embeddings import HuggingFaceInstructEmbeddings
+from langchain.embeddings import OpenAIEmbeddings
+# from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
+from htmlTemplates import css, bot_template, user_template
 
 
 def get_pdf_text(pdf_docs):
@@ -31,8 +32,8 @@ def get_text_chunks(raw_text):
 
 
 def get_vectorstore(text_chunks):
-    # embeddings = OpenAIEmbeddings()
-    embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    embeddings = OpenAIEmbeddings()
+    # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
     vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vectorstore
 
@@ -48,15 +49,36 @@ def get_conversation_chain(vectorstore):
     return conversation_chain
 
 
+def handle_user_input(user_question):
+    response = st.session_state.conversation({'question': user_question})
+    st.session_state.chat_history =  response['chat_history']
+
+    for i, message in enumerate(st.session_state.chat_history):
+        if i % 2 == 0:
+            st.write(user_template.replace("{{MSG}}", message.content), unsafe_allow_html=True)
+        else:
+            st.write(bot_template.replace("{{MSG}}", message.content), unsafe_allow_html=True)
+
 def main():
     load_dotenv()
 
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
 
-    st.set_page_config(page_title="Chat with multiple PDFs", page_icon=":books:")
-    st.header("Chat with multiple PDFs :books:")
-    st.text_input("Ask a question about your documents:")
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = None
+
+    st.set_page_config(page_title="Financial Statement analysis", page_icon=":books:")
+
+    st.write(css, unsafe_allow_html=True)
+
+    st.header("Financial Statement analysis :books:")
+    user_question = st.text_input("Ask a question about your documents:")
+
+    if user_question:
+        handle_user_input(user_question)
+    # st.write(user_template.replace("{{MSG}}", "hello bot"), unsafe_allow_html=True)
+    # st.write(bot_template.replace("{{MSG}}", "hello human"), unsafe_allow_html=True)
 
     with st.sidebar:
         st.subheader("Your documents")
